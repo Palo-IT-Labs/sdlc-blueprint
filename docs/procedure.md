@@ -248,22 +248,27 @@ gh api repos/$ORG/sdlc-sample-app/rulesets --jq '.[] | {name, enforcement, sourc
 
 ### 3.4 Dérouler les scénarios de test
 
-Chaque scénario vérifie qu'une règle **bloque réellement**. Partir de `main` à jour : `git checkout main && git pull`.
+Chaque scénario vérifie qu'une règle **bloque réellement**. Partir de `main` à jour à chaque fois: `git checkout main && git pull`.
 
 **S1. Push direct sur `main` refusé**
 
 ```bash
 echo "test" >> push-direct.txt && git add push-direct.txt && git commit -m "test: push direct"
 git push origin main
-# attendu : refusé, "Changes must be made through a pull request"
+# attendu : refusé ("push declined due to repository rule violations"), avec :
+#   - Changes must be made through a pull request.
+#   - Required status check "sdlc / build-test" is expected.
 git reset --hard origin/main
 ```
 
 **S2. Force-push refusé**
 
+Il faut un historique **divergent** : un commit ajouté au-dessus de `main` n'est pas une réécriture, il serait refusé par la seule règle PR.
+
 ```bash
-git commit --allow-empty -m "test: force push" && git push --force origin main
-# attendu : refusé, "Cannot force-push to this branch"
+git reset --hard HEAD~1 && git commit --allow-empty -m "test: réécriture"
+git push --force origin main
+# attendu : refusé, avec en plus des règles de S1 : "Cannot force-push to this branch"
 git reset --hard origin/main
 ```
 
@@ -300,7 +305,7 @@ git commit -am "test: test volontairement cassé" && git push -u origin test/tes
 gh pr create --fill --base main
 gh pr checks --watch
 # attendu : "sdlc / build-test" en échec ; merge impossible même avec une approbation
-gh pr close --delete-branch
+gh pr close <numero> --delete-branch      # gh pr close exige le numéro ou la branche
 ```
 
 **S6. Secret bloqué au push**
@@ -324,6 +329,18 @@ cd ~/Documents/workspace/sdlc-blueprint && ./scripts/check.sh $ORG/sdlc-sample-a
 ```
 
 Résultat attendu : celui de l'étape 3.3.
+
+**Résultats obtenus (4 octobre 2026).**
+
+| Scénario | Résultat |
+|---|---|
+| S1 | Refusé : PR obligatoire et contrôle requis `sdlc / build-test` |
+| S2 | Premier essai non probant (commit ajouté, pas réécrit) ; procédure corrigée, **à refaire** |
+| S3 | PR #1 : `REVIEW_REQUIRED`, `BLOCKED` |
+| S4 | **À faire** : en attente de l'approbation du relecteur sur la PR #1 |
+| S5 | PR #2 : `sdlc / build-test` en échec, `BLOCKED` ; PR à fermer avec `gh pr close 2 --delete-branch` |
+| S6 | Push refusé ; 0 alerte de secret ouverte sur le repo |
+| S7 | À faire après S4 |
 
 **Chez le client.** Prévenir l'équipe **avant** l'étape 3.2 : sans mode `evaluate`, les règles bloquent dès leur activation. Recenser au préalable les comptes de service ou pipelines qui poussent directement sur `main`.
 
