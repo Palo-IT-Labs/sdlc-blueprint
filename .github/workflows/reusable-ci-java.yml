@@ -1,0 +1,74 @@
+# Workflow partagé : build et tests d'un projet Java / Maven.
+# Appelé depuis un repo d'équipe (voir templates/repo/.github/workflows/ci.yml).
+# Le contrôle produit s'appelle "<job appelant> / build-test", par exemple "ci / build-test".
+name: Reusable CI (Java / Maven)
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: Version de Java
+        type: string
+        default: "21"
+      working-directory:
+        description: Dossier contenant le pom.xml
+        type: string
+        default: "."
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v5
+
+      - name: Installation de Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+          cache: maven
+
+      - name: Build et tests
+        run: ./mvnw -B -ntp verify
+
+      - name: Résumé des tests
+        if: always()
+        run: |
+          shopt -s nullglob
+          files=(target/surefire-reports/TEST-*.xml)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Aucun rapport de tests trouvé." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          total=0; failed=0; skipped=0
+          for f in "${files[@]}"; do
+            t=$(grep -o 'tests="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
+            fl=$(grep -o 'failures="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
+            er=$(grep -o 'errors="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
+            sk=$(grep -o 'skipped="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
+            total=$((total + ${t:-0})); failed=$((failed + ${fl:-0} + ${er:-0})); skipped=$((skipped + ${sk:-0}))
+          done
+          {
+            echo "### Résultats des tests"
+            echo ""
+            echo "| Total | Échecs | Ignorés |"
+            echo "|---|---|---|"
+            echo "| $total | $failed | $skipped |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Rapports de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: ${{ inputs.working-directory }}/target/surefire-reports/
+          if-no-files-found: ignore
