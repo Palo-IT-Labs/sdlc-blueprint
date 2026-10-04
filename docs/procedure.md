@@ -76,8 +76,8 @@ gh api "orgs/$ORG" --jq '{plan: .plan.name, members_can_create_public_repositori
 
 ---
 
-## Phase 5. Couche organisation (Bloqué (rôle Owner)
+## Phase 5. Couche organisation (Bloqué : rôle Owner)
 
 ---
 
-## Phase 6. Collecte planifiée et rapport consolidé (Bloqué (jeton en lecture)
+## Phase 6. Collecte planifiée et rapport consolidé (Bloqué : jeton en lecture)
