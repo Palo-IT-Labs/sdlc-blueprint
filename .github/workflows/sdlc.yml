@@ -1,0 +1,217 @@
+# Pipeline SDLC générique, appelé depuis un repo d'équipe :
+#
+#   jobs:
+#     sdlc:
+#       uses: <org>/sdlc-blueprint/.github/workflows/sdlc.yml@main
+#
+# Il détecte la stack (Java Maven/Gradle, Node, Python, .NET) ou utilise la configuration
+# du fichier .sdlc.yml du repo, puis lance installation, build et tests.
+# Le contrôle requis produit s'appelle "<job appelant> / build-test", par exemple "sdlc / build-test".
+name: SDLC pipeline
+
+on:
+  workflow_call:
+    inputs:
+      config-file:
+        description: Fichier de configuration du repo
+        type: string
+        default: ".sdlc.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: detect
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      stack: ${{ steps.cfg.outputs.stack }}
+      workdir: ${{ steps.cfg.outputs.workdir }}
+      install: ${{ steps.cfg.outputs.install }}
+      build: ${{ steps.cfg.outputs.build }}
+      test: ${{ steps.cfg.outputs.test }}
+      java: ${{ steps.cfg.outputs.java }}
+      node: ${{ steps.cfg.outputs.node }}
+      python: ${{ steps.cfg.outputs.python }}
+      dotnet: ${{ steps.cfg.outputs.dotnet }}
+      node-cache: ${{ steps.cfg.outputs.node_cache }}
+      node-lock: ${{ steps.cfg.outputs.node_lock }}
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v5
+
+      - name: Lecture de la configuration et détection de la stack
+        id: cfg
+        env:
+          CONFIG: ${{ inputs.config-file }}
+        run: |
+          # Lecture d'une clé de .sdlc.yml (vide si absente). yq est présent sur les runners GitHub.
+          get() { [ -f "$CONFIG" ] && yq -r "$1 // \"\"" "$CONFIG" || true; }
+
+          stack="$(get '.stack')"; [ -z "$stack" ] && stack="auto"
+          workdir="$(get '.["working-directory"]')"; [ -z "$workdir" ] && workdir="."
+          install="$(get '.commands.install')"
+          build="$(get '.commands.build')"
+          test="$(get '.commands.test')"
+          java="$(get '.versions.java')";     [ -z "$java" ] && java="21"
+          node="$(get '.versions.node')";     [ -z "$node" ] && node="22"
+          python="$(get '.versions.python')"; [ -z "$python" ] && python="3.12"
+          dotnet="$(get '.versions.dotnet')"; [ -z "$dotnet" ] && dotnet="8.0.x"
+
+          cd "$workdir"
+          if [ "$stack" = "auto" ]; then
+            if   [ -f pom.xml ];                                  then stack="java-maven"
+            elif [ -f build.gradle ] || [ -f build.gradle.kts ];  then stack="java-gradle"
+            elif [ -f package.json ];                             then stack="node"
+            elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then stack="python"
+            elif ls ./*.sln ./*.csproj >/dev/null 2>&1;           then stack="dotnet"
+            else
+              echo "::error::Stack non détectée dans '$workdir'. Préciser 'stack' et 'commands' dans $CONFIG."
+              exit 1
+            fi
+          fi
+
+          # Commandes par défaut selon la stack, si .sdlc.yml ne les fournit pas
+          node_cache=""; node_lock=""
+          case "$stack" in
+            java-maven)
+              mvn="mvn"; [ -x mvnw ] && mvn="./mvnw"
+              [ -z "$test" ] && test="$mvn -B -ntp verify" ;;
+            java-gradle)
+              gradle="gradle"; [ -x gradlew ] && gradle="./gradlew"
+              [ -z "$test" ] && test="$gradle build" ;;
+            node)
+              if   [ -f pnpm-lock.yaml ]; then pm="pnpm"; node_cache="pnpm"; node_lock="$workdir/pnpm-lock.yaml"; [ -z "$install" ] && install="corepack enable && pnpm install --frozen-lockfile"
+              elif [ -f yarn.lock ];      then pm="yarn"; node_cache="yarn"; node_lock="$workdir/yarn.lock"; [ -z "$install" ] && install="corepack enable && yarn install --immutable"
+              elif [ -f package-lock.json ]; then pm="npm"; node_cache="npm"; node_lock="$workdir/package-lock.json"; [ -z "$install" ] && install="npm ci"
+              else pm="npm"; [ -z "$install" ] && install="npm install"
+              fi
+              [ -z "$build" ] && build="$pm run build --if-present"
+              [ -z "$test" ]  && test="$pm test --if-present" ;;
+            python)
+              if [ -z "$install" ]; then
+                if [ -f requirements.txt ]; then install="pip install -r requirements.txt pytest"
+                else install="pip install . pytest"; fi
+              fi
+              [ -z "$test" ] && test="pytest" ;;
+            dotnet)
+              [ -z "$install" ] && install="dotnet restore"
+              [ -z "$build" ]   && build="dotnet build --no-restore"
+              [ -z "$test" ]    && test="dotnet test --no-build" ;;
+            custom)
+              [ -z "$test" ] && { echo "::error::Stack 'custom' : la commande 'commands.test' est obligatoire dans $CONFIG."; exit 1; } ;;
+            *)
+              echo "::error::Stack inconnue : '$stack'."; exit 1 ;;
+          esac
+
+          {
+            echo "stack=$stack"; echo "workdir=$workdir"
+            echo "install=$install"; echo "build=$build"; echo "test=$test"
+            echo "java=$java"; echo "node=$node"; echo "python=$python"; echo "dotnet=$dotnet"
+            echo "node_cache=$node_cache"; echo "node_lock=$node_lock"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Configuration SDLC détectée"
+            echo ""
+            echo "| Clé | Valeur |"
+            echo "|---|---|"
+            echo "| Stack | \`$stack\` |"
+            echo "| Dossier | \`$workdir\` |"
+            echo "| Installation | \`${install:-aucune}\` |"
+            echo "| Build | \`${build:-aucun}\` |"
+            echo "| Tests | \`$test\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build-test:
+    name: build-test
+    needs: detect
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ needs.detect.outputs.workdir }}
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v5
+
+      - name: Installation de Java
+        if: startsWith(needs.detect.outputs.stack, 'java')
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ needs.detect.outputs.java }}
+          cache: ${{ needs.detect.outputs.stack == 'java-maven' && 'maven' || 'gradle' }}
+
+      - name: Installation de Node.js
+        if: needs.detect.outputs.stack == 'node'
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ needs.detect.outputs.node }}
+          cache: ${{ needs.detect.outputs.node-cache }}
+          cache-dependency-path: ${{ needs.detect.outputs.node-lock }}
+
+      - name: Installation de Python
+        if: needs.detect.outputs.stack == 'python'
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.detect.outputs.python }}
+
+      - name: Installation de .NET
+        if: needs.detect.outputs.stack == 'dotnet'
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ needs.detect.outputs.dotnet }}
+
+      - name: Installation des dépendances
+        if: needs.detect.outputs.install != ''
+        env:
+          CMD: ${{ needs.detect.outputs.install }}
+        run: bash -c "$CMD"
+
+      - name: Build
+        if: needs.detect.outputs.build != ''
+        env:
+          CMD: ${{ needs.detect.outputs.build }}
+        run: bash -c "$CMD"
+
+      - name: Tests
+        env:
+          CMD: ${{ needs.detect.outputs.test }}
+        run: bash -c "$CMD"
+
+      - name: Résumé des tests
+        if: always()
+        run: |
+          # Lit les rapports au format JUnit XML produits par la plupart des outils de test
+          mapfile -t files < <(find . -type f \( -name 'TEST-*.xml' -o -name 'junit*.xml' -o -name '*test-results*.xml' \) -not -path '*/node_modules/*' 2>/dev/null)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Aucun rapport de tests au format JUnit trouvé." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          total=0; failed=0; skipped=0
+          for f in "${files[@]}"; do
+            t=$(grep -o 'tests="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
+            fl=$(grep -o 'failures="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
+            er=$(grep -o 'errors="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
+            sk=$(grep -o 'skipped="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
+            total=$((total + ${t:-0})); failed=$((failed + ${fl:-0} + ${er:-0})); skipped=$((skipped + ${sk:-0}))
+          done
+          {
+            echo "### Résultats des tests"
+            echo ""
+            echo "| Total | Échecs | Ignorés |"
+            echo "|---|---|---|"
+            echo "| $total | $failed | $skipped |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Rapports de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            ${{ needs.detect.outputs.workdir }}/**/TEST-*.xml
+            ${{ needs.detect.outputs.workdir }}/**/junit*.xml
+          if-no-files-found: ignore

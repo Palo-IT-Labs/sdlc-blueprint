@@ -1,10 +1,16 @@
 {
-  "name": "socle-main",
+  "name": "sdlc-standard",
   "target": "branch",
   "enforcement": "active",
   "conditions": {
     "ref_name": {
       "include": ["~DEFAULT_BRANCH"],
+      "exclude": []
+    },
+    "repository_property": {
+      "include": [
+        { "name": "sdlc-profile", "property_values": ["standard"] }
+      ],
       "exclude": []
     }
   },

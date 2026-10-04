@@ -64,7 +64,7 @@ gh api "repos/<owner>/<repo>/rules/branches/main" \
   --jq '.[] | select(.type=="pull_request") | .parameters'
 ```
 
-Et la présence de `CODEOWNERS` et du modèle de PR (vérifiés par `scripts/check-socle.sh`).
+Et la présence de `CODEOWNERS` et du modèle de PR (vérifiés par `scripts/check.sh`).
 
 ## Pièges
 

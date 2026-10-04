@@ -2,7 +2,7 @@
 # Applique le socle (fiches 01 à 05) sur un repo GitHub.
 #
 # Usage   : ./scripts/apply-socle.sh <owner>/<repo>
-# Options : CHECK_CONTEXT="ci / build-test"   nom du contrôle requis
+# Options : CHECK_CONTEXT="sdlc / build-test"   nom du contrôle requis
 #           REQUIRE_CODE_OWNER=false          désactive la relecture obligatoire par CODEOWNERS
 #           DRY_RUN=1                         affiche les appels sans les exécuter
 #
@@ -10,7 +10,7 @@
 set -euo pipefail
 
 R="${1:?Usage : $0 <owner>/<repo>}"
-CHECK_CONTEXT="${CHECK_CONTEXT:-ci / build-test}"
+CHECK_CONTEXT="${CHECK_CONTEXT:-sdlc / build-test}"
 REQUIRE_CODE_OWNER="${REQUIRE_CODE_OWNER:-true}"
 DRY_RUN="${DRY_RUN:-0}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -73,4 +73,4 @@ else
 fi
 
 step "Terminé"
-echo "  Vérifier avec : $ROOT/scripts/check-socle.sh $R"
+echo "  Vérifier avec : $ROOT/scripts/check.sh $R"

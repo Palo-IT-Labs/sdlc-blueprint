@@ -1,0 +1,35 @@
+# Configuration SDLC du repo. Toutes les clés sont optionnelles.
+# Sans ce fichier, la stack est détectée automatiquement et les commandes par défaut sont utilisées.
+
+# Stack : auto | java-maven | java-gradle | node | python | dotnet | custom
+stack: auto
+
+# Dossier contenant le projet (pom.xml, package.json...), si ce n'est pas la racine
+working-directory: .
+
+# Versions des outils (valeurs par défaut indiquées)
+versions:
+  java: "21"
+  node: "22"
+  python: "3.12"
+  dotnet: "8.0.x"
+
+# Commandes : à renseigner seulement pour remplacer celles par défaut de la stack.
+# Obligatoire pour la stack "custom" : au moins commands.test.
+commands:
+  install: ""
+  build: ""
+  test: ""
+
+# Équipe responsable (informatif, repris dans le rapport de conformité)
+team: ""
+
+# Identifiant de l'application dans ServiceNow (traçabilité)
+servicenow-app: ""
+
+# Points non automatisables : liens vers la documentation ou le contact correspondant
+declarations:
+  deployment-doc: ""   # procédure de déploiement
+  architecture: ""     # schéma ou description d'architecture
+  on-call: ""          # contact d'astreinte ou groupe d'affectation
+  runbook: ""          # procédure d'exploitation et de traitement des incidents

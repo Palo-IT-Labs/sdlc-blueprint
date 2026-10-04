@@ -1,0 +1,17 @@
+# Pipeline SDLC du repo : appelle le pipeline générique du SDLC Blueprint.
+# Ne pas renommer le job "sdlc" : le contrôle requis s'appelle "sdlc / build-test".
+# Pour adapter la stack ou les commandes, utiliser le fichier .sdlc.yml, pas ce workflow.
+name: SDLC
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sdlc:
+    uses: __ORG__/sdlc-blueprint/.github/workflows/sdlc.yml@main

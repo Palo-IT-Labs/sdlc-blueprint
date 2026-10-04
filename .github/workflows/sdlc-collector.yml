@@ -1,0 +1,48 @@
+# Collecte planifiée de la conformité SDLC sur les repos du périmètre.
+#
+# Configuration (Settings > Secrets and variables > Actions) :
+#   Secret   SDLC_COLLECTOR_TOKEN  jeton en lecture sur les repos du périmètre
+#                                  (jeton d'une GitHub App ou jeton personnel à granularité fine)
+#   Variable SDLC_ORG              organisation à parcourir (par défaut : celle de ce repo)
+#   Variable SDLC_TOPIC            topic qui désigne les repos du périmètre (par défaut : sdlc)
+#   Variable SDLC_PROPERTY         alternative au topic, ex. sdlc-profile=standard
+name: SDLC collector
+
+on:
+  schedule:
+    - cron: "0 5 * * 1-5"   # chaque jour ouvré à 5 h UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v5
+
+      - name: Collecte de la conformité
+        env:
+          GH_TOKEN: ${{ secrets.SDLC_COLLECTOR_TOKEN }}
+          ORG: ${{ vars.SDLC_ORG || github.repository_owner }}
+          TOPIC: ${{ vars.SDLC_TOPIC || 'sdlc' }}
+          PROPERTY: ${{ vars.SDLC_PROPERTY }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret SDLC_COLLECTOR_TOKEN manquant."
+            exit 1
+          fi
+          if [ -n "$PROPERTY" ]; then scope=(--property "$PROPERTY"); else scope=(--topic "$TOPIC"); fi
+          # Le code de retour signale des points KO : ce n'est pas une erreur de collecte
+          python3 collector/sdlc_check.py --org "$ORG" "${scope[@]}" --out reports --quiet || true
+          cat reports/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publication du rapport
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdlc-report
+          path: reports/
+          retention-days: 90

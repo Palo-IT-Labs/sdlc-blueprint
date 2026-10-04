@@ -14,6 +14,18 @@ Disposer d'un environnement de test qui reproduit la situation d'une équipe : u
 | CLI `gh` connectée **au bon compte** | Les scripts passent par l'API GitHub | `gh auth status` |
 | `jq` | Lecture des réponses de l'API dans les scripts | `jq --version` |
 | Un second compte relecteur | Tester la relecture obligatoire : on ne peut pas approuver sa propre PR | Un collègue ajouté au repo |
+| Python 3.8 ou plus | Le collecteur de conformité | `python3 --version` |
+
+## Les droits nécessaires, selon ce que l'on veut faire
+
+| Objectif | Droit GitHub | Qui le donne |
+|---|---|---|
+| Créer les repos de test | Membre autorisé à créer des repos dans l'organisation (réglage *Member privileges > Repository creation*) | Un Owner de l'organisation |
+| Appliquer le socle repo par repo (`apply-socle.sh`), ouvrir la PR d'amorçage | Rôle **Admin** sur les repos concernés (automatique pour le créateur d'un repo) | Le créateur du repo ou un Owner |
+| Couche organisation : propriété `sdlc-profile`, ruleset d'organisation, configuration de sécurité (`apply-org.sh`) | Rôle **Owner** de l'organisation, et scope `admin:org` dans `gh` | Un Owner de l'organisation |
+| Collecte planifiée sur plusieurs repos | Un jeton en lecture sur ces repos : GitHub App installée sur l'organisation, ou jeton à granularité fine autorisé par l'organisation | Un Owner (installation de l'App ou validation du jeton) |
+
+Le **plan GitHub** de l'organisation (Free, Team ou Enterprise) détermine certaines fonctions : mode `evaluate` des rulesets, fonctions de sécurité sur les repos privés. Le connaître évite de chercher une option qui n'existe pas.
 
 ## Comment
 
