@@ -348,6 +348,77 @@ Résultat attendu : celui de l'étape 3.3.
 
 ## Phase 4. Raccordement d'un repo par PR d'amorçage (À faire)
 
+Objectif double : éprouver la **PR d'amorçage** sur un repo qui n'a aucun fichier SDLC, et vérifier que le pipeline commun est **générique** avec une seconde stack (Node.js). L'application `sdlc-sample-node` (sans dépendance, 2 tests) est prête en local dans `~/Documents/workspace/sdlc-sample-node`.
+
+### 4.0 Pousser les derniers changements du blueprint
+
+Le pipeline commun a été corrigé : le résumé des tests compte désormais les cas de test eux-mêmes, car le rapport JUnit de Node.js ne porte pas les compteurs de synthèse.
+
+```bash
+cd ~/Documents/workspace/sdlc-blueprint && git push
+```
+
+### 4.1 Créer le repo et pousser l'application
+
+```bash
+gh repo create $ORG/sdlc-sample-node --public --description "Application Node.js de démonstration du SDLC Blueprint"
+cd ~/Documents/workspace/sdlc-sample-node
+git remote add origin git@github.com:$ORG/sdlc-sample-node.git
+git push -u origin main
+```
+
+**Résultat attendu.** Aucun pipeline ne se lance : le repo n'a pas encore de workflow.
+
+### 4.2 Ouvrir la PR d'amorçage
+
+```bash
+cd ~/Documents/workspace/sdlc-blueprint
+TEAM="@mdabo-palo-it @shenchiri-palo" ADD_TOPIC=1 ./scripts/bootstrap-repo.sh $ORG/sdlc-sample-node
+```
+
+**Résultat attendu.**
+- Quatre fichiers ajoutés : `.github/workflows/sdlc.yml`, `.sdlc.yml`, `.github/pull_request_template.md`, `.github/CODEOWNERS` (avec les deux relecteurs).
+- Une PR ouverte « chore(sdlc): amorçage du SDLC Blueprint », dont l'URL s'affiche.
+- Le topic `sdlc` ajouté au repo : il entre dans le périmètre du collecteur.
+
+Ajouter aussi le topic au repo de l'étape 3, pour la collecte de la phase 6 :
+
+```bash
+gh repo edit $ORG/sdlc-sample-app --add-topic sdlc
+```
+
+### 4.3 Relire la PR et vérifier le pipeline
+
+```bash
+gh pr view --repo $ORG/sdlc-sample-node --web     # relire les fichiers proposés
+gh pr checks --repo $ORG/sdlc-sample-node <numero> --watch
+```
+
+**Résultat attendu.**
+- `sdlc / detect` et `sdlc / build-test` au vert, **sans aucune configuration** : stack `node` détectée, installation `npm ci` (fichier de verrou présent), tests `npm test`.
+- Dans le résumé de l'exécution : **2 tests**, 0 échec.
+
+**Exercice de relecture.** Compléter `.sdlc.yml` dans la branche de la PR, comme le ferait l'équipe : `servicenow-app`, `declarations.deployment-doc` (par exemple `README.md#lancer-en-local`), `declarations.architecture`, `declarations.on-call`.
+
+### 4.4 Fusionner la PR
+
+Pas encore de règles sur ce repo : la fusion est directe.
+
+```bash
+gh pr merge <numero> --repo $ORG/sdlc-sample-node --squash --delete-branch
+```
+
+### 4.5 Appliquer le socle et contrôler
+
+```bash
+./scripts/apply-socle.sh $ORG/sdlc-sample-node
+./scripts/check.sh $ORG/sdlc-sample-node
+```
+
+**Résultat attendu.** Même profil que `sdlc-sample-app` : seul `SEC-6` (analyse de code) en KO, plus les déclarations de `.sdlc.yml` restées vides, le cas échéant.
+
+**Chez le client.** La PR d'amorçage demande le droit d'écriture sur le repo. Elle ne modifie jamais un fichier existant : si l'équipe a déjà un CODEOWNERS ou un modèle de PR, ils sont conservés et le contrôle dira s'ils suffisent. C'est l'équipe qui relit et fusionne.
+
 ---
 
 ## Phase 5. Couche organisation (Non testable ici : plan Enterprise requis, à valider chez le client)
