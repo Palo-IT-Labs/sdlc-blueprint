@@ -10,7 +10,7 @@ Légende du statut : **Fait** (éprouvé), **À faire**, **Bloqué** (en attente
 
 ## Phase 1. Poste de travail
 
-### 1.1 Connecter la CLI GitHub au compte de l'organisation · Fait
+### 1.1 Connecter la CLI GitHub au compte de l'organisation (Fait)
 
 **Action.** `gh` peut garder plusieurs comptes, mais un seul est actif. Ajouter le compte de l'organisation et l'activer.
 
@@ -32,7 +32,7 @@ gh api user --jq .login   # affiche le compte de l'organisation
 - Si l'organisation impose le **SSO** (connexion d'entreprise), le jeton de `gh` doit être autorisé pour cette organisation : une invite apparaît à la première commande, ou *Settings > Applications > Authorized OAuth Apps* sur GitHub.
 - Avec des **comptes gérés par l'entreprise** (Enterprise Managed Users), le compte est fourni par le client : utiliser celui-là, pas un compte personnel.
 
-### 1.2 Vérifier son rôle et les possibilités de l'organisation · Fait
+### 1.2 Vérifier son rôle et les possibilités de l'organisation (Fait)
 
 **Commande.**
 
@@ -52,7 +52,7 @@ gh api "orgs/$ORG" --jq '{plan: .plan.name, members_can_create_public_repositori
 
 ---
 
-## Phase 2. Mise en ligne des deux repos · À faire
+## Phase 2. Mise en ligne des deux repos (À faire)
 
 ### 2.1 Créer et pousser le repo central `sdlc-blueprint`
 
@@ -62,7 +62,7 @@ gh api "orgs/$ORG" --jq '{plan: .plan.name, members_can_create_public_repositori
 
 ---
 
-## Phase 3. Application du socle (mode repo par repo) · À faire
+## Phase 3. Application du socle (mode repo par repo) (À faire)
 
 ### 3.1 Appliquer les règles : `apply-socle.sh`
 
@@ -72,12 +72,12 @@ gh api "orgs/$ORG" --jq '{plan: .plan.name, members_can_create_public_repositori
 
 ---
 
-## Phase 4. Raccordement d'un repo par PR d'amorçage · À faire
+## Phase 4. Raccordement d'un repo par PR d'amorçage (À faire)
 
 ---
 
-## Phase 5. Couche organisation · Bloqué (rôle Owner)
+## Phase 5. Couche organisation (Bloqué (rôle Owner)
 
 ---
 
-## Phase 6. Collecte planifiée et rapport consolidé · Bloqué (jeton en lecture)
+## Phase 6. Collecte planifiée et rapport consolidé (Bloqué (jeton en lecture)
