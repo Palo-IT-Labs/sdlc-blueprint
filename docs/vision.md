@@ -99,7 +99,7 @@ Un socle **prêt à l'emploi** qui rend un repo GitHub conforme aux exigences L1
 | # | Action | Comment |
 |---|---|---|
 | 1 | Rendre le pipeline commun accessible aux repos de l'organisation | Repo central public, ou *Settings > Actions > General > Access* s'il est privé |
-| 2 | Créer la propriété `sdlc-profile` et le ruleset d'organisation | `./scripts/apply-org.sh <organisation>` (rôle Owner) |
+| 2 | Créer la propriété `sdlc-profile` et le ruleset d'organisation | `./scripts/apply-org.sh <organisation>` (rôle Owner, **plan Enterprise requis** pour les rulesets d'organisation) |
 | 3 | Activer la configuration de sécurité de l'organisation (détection de secrets, blocage au push, analyse de code, Dependabot) | *Organization settings > Code security > Configurations* |
 | 4 | Donner au collecteur un jeton en lecture | Une GitHub App en lecture, ou un jeton à granularité fine, enregistré dans le secret `SDLC_COLLECTOR_TOKEN` du repo central |
 
@@ -176,7 +176,7 @@ Le pipeline détecte la stack à partir des fichiers du projet (`pom.xml`, `buil
 | Collecteur et `check.sh` | Éprouvés en lecture sur des repos publics |
 | Collecte planifiée | Écrite, à éprouver (nécessite le jeton) |
 | PR d'amorçage | Écrite, à éprouver |
-| Couche organisation (`apply-org.sh`) | Écrite, à éprouver avec le rôle Owner |
+| Couche organisation (`apply-org.sh`) | Écrite ; à éprouver sur une organisation en plan Enterprise |
 | Fiches 06 à 09 (dépendances, analyse de code, traçabilité, documentation) | À venir |
 | Niveau L2 complet | À venir |
 | SDLC assisté par l'IA (instructions d'agents, relecture des PR d'agents) | À venir |
@@ -186,6 +186,6 @@ Le pipeline détecte la stack à partir des fichiers du projet (`pom.xml`, `buil
 ## Limites connues
 
 - **Un projet par repo** : un repo contenant plusieurs composants de stacks différentes demande aujourd'hui une stack `custom`.
-- **Mode `evaluate` des rulesets** (tester sans bloquer) : réservé à GitHub Enterprise. Ailleurs, prévenir l'équipe avant d'activer.
+- **Disponibilité selon le plan GitHub** : rulesets d'organisation et mode `evaluate` réservés au plan Enterprise ; rulesets sur repos privés à partir de Pro ou Team. En plan Free, seul le mode repo par repo sur repos publics fonctionne.
 - **Fonctions de sécurité sur les repos privés** : selon la licence (Secret Protection, Code Security ou Advanced Security).
 - **Le collecteur voit ce que voit son jeton** : sans droits suffisants, les points apparaissent en `?`, jamais en faux `OK`.

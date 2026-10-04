@@ -6,7 +6,10 @@
 # Usage   : ./scripts/apply-org.sh <organisation>
 # Options : DRY_RUN=1   affiche les appels sans les exécuter
 #
-# Prérequis : rôle Owner sur l'organisation, gh connecté avec le scope admin:org.
+# Prérequis : organisation en plan Enterprise (rulesets d'organisation), rôle Owner,
+#             gh connecté avec le scope admin:org.
+# Attention  : si la propriété sdlc-profile existe déjà avec un autre type, ce script la redéfinit
+#             (liste de valeurs). Vérifier d'abord : gh api orgs/<org>/properties/schema
 # Statut   : non encore éprouvé sur une organisation réelle. Lancer d'abord avec DRY_RUN=1.
 set -euo pipefail
 

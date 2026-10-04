@@ -44,11 +44,49 @@ gh api "orgs/$ORG" --jq '{plan: .plan.name, members_can_create_public_repositori
 
 **Résultat obtenu sur l'organisation de démonstration.** Rôle `member` ; plan `free` ; création de repos publics et privés autorisée aux membres.
 
-**Conséquences.**
-- Repos de test **publics** : les fonctions de sécurité (détection de secrets, blocage au push) y sont gratuites.
-- La couche organisation (propriété personnalisée, ruleset d'organisation) demande le rôle **Owner**.
+**Ce que le plan permet** (vérifié dans la documentation GitHub et par l'API) :
 
-**Chez le client.** Le plan est en général Enterprise (mode `evaluate` des rulesets disponible, sécurité sous licence sur les repos privés). Les réglages d'organisation appartiennent à l'équipe qui administre la plateforme : prévoir de les faire avec elle.
+| Fonction | Free | Pro / Team | Enterprise |
+|---|---|---|---|
+| Rulesets sur repo public | Oui | Oui | Oui |
+| Rulesets sur repo privé | **Non** | Oui | Oui |
+| Rulesets d'organisation (plusieurs repos) | Non | Non | **Oui** |
+| Détection de secrets sur repo public | Oui | Oui | Oui |
+| Détection de secrets sur repo privé | Non | Sous licence | Sous licence |
+| Mode `evaluate` des rulesets | Non | Non | Oui |
+
+Sur un repo privé d'une organisation Free, l'API répond : « *Upgrade to GitHub Pro or make this repository public to enable this feature* ».
+
+**Conséquences pour le test.**
+- Les repos de test doivent être **publics** pour éprouver le socle (protection, relecture, contrôle requis, détection de secrets).
+- La **couche organisation n'est pas testable** sur un plan Free, même avec le rôle Owner : elle sera validée directement dans l'organisation du client, si elle est sur le plan Enterprise.
+- Le périmètre du collecteur se définit par le **topic** `sdlc`, modifiable par l'admin d'un repo, plutôt que par la propriété personnalisée.
+
+**Chez le client.** Vérifier le plan de l'organisation dès le départ. En Enterprise : rulesets d'organisation, mode `evaluate` et sécurité sur repos privés (selon licences) sont disponibles. Les réglages d'organisation appartiennent à l'équipe qui administre la plateforme : prévoir de les faire avec elle.
+
+### 1.3 État initial des repos de test (Fait)
+
+**Contexte.** Les deux repos ont été créés par un administrateur de l'organisation, en privé, avec le rôle Admin pour l'accompagnant. Une propriété personnalisée `sdlc-profile` a été créée au niveau de l'organisation.
+
+**Commande.**
+
+```bash
+for r in sdlc-blueprint sdlc-sample-app; do
+  gh api "repos/$ORG/$r" --jq '{visibility, size, admin: .permissions.admin}'
+  gh api "repos/$ORG/$r/properties/values"
+  gh api "repos/$ORG/$r/rulesets"
+done
+gh api "orgs/$ORG/properties/schema"
+```
+
+**Résultat obtenu.**
+- Repos **privés**, **vides**, rôle Admin confirmé.
+- Rulesets refusés (plan Free et repo privé).
+- Propriété `sdlc-profile` définie au niveau de l'organisation (type texte, modifiable par les administrateurs de l'organisation uniquement), mais **aucune valeur attribuée** aux deux repos.
+
+**Décision à prendre.** Passer les deux repos en **public**. Leur contenu ne contient aucune information client.
+
+**Chez le client.** Qui peut attribuer la propriété (`values_editable_by`) est une décision de gouvernance : les administrateurs seuls, ou aussi les équipes sur leurs propres repos.
 
 ---
 
@@ -76,7 +114,7 @@ gh api "orgs/$ORG" --jq '{plan: .plan.name, members_can_create_public_repositori
 
 ---
 
-## Phase 5. Couche organisation (Bloqué : rôle Owner)
+## Phase 5. Couche organisation (Non testable ici : plan Enterprise requis, à valider chez le client)
 
 ---
 
