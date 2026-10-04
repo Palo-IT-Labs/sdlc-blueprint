@@ -190,14 +190,12 @@ jobs:
             echo "Aucun rapport de tests au format JUnit trouvé." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          total=0; failed=0; skipped=0
-          for f in "${files[@]}"; do
-            t=$(grep -o 'tests="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
-            fl=$(grep -o 'failures="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
-            er=$(grep -o 'errors="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
-            sk=$(grep -o 'skipped="[0-9]*"' "$f" | head -1 | tr -dc '0-9')
-            total=$((total + ${t:-0})); failed=$((failed + ${fl:-0} + ${er:-0})); skipped=$((skipped + ${sk:-0}))
-          done
+          # On compte les éléments plutôt que les attributs de synthèse : tous les outils
+          # (Maven Surefire, Node.js, pytest...) produisent des <testcase>, pas toujours les compteurs.
+          count() { cat "${files[@]}" | grep -o "$1" | wc -l | tr -d ' '; }
+          total=$(count '<testcase[ >]')
+          failed=$(( $(count '<failure[ >/]') + $(count '<error[ >/]') ))
+          skipped=$(count '<skipped[ >/]')
           {
             echo "### Résultats des tests"
             echo ""
