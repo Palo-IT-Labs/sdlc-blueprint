@@ -84,7 +84,12 @@ gh api "orgs/$ORG/properties/schema"
 - Rulesets refusés (plan Free et repo privé).
 - Propriété `sdlc-profile` définie au niveau de l'organisation (type texte, modifiable par les administrateurs de l'organisation uniquement), mais **aucune valeur attribuée** aux deux repos.
 
-**Décision à prendre.** Passer les deux repos en **public**. Leur contenu ne contient aucune information client.
+**Décision prise.** Les deux repos sont passés en **public** (leur contenu ne contient aucune information client). Vérification :
+
+```bash
+gh api "repos/$ORG/sdlc-sample-app" --jq .visibility        # public
+gh api "repos/$ORG/sdlc-sample-app/rulesets" --jq length     # 0, sans erreur : les rulesets sont disponibles
+```
 
 **Chez le client.** Qui peut attribuer la propriété (`values_editable_by`) est une décision de gouvernance : les administrateurs seuls, ou aussi les équipes sur leurs propres repos.
 
@@ -92,11 +97,52 @@ gh api "orgs/$ORG/properties/schema"
 
 ## Phase 2. Mise en ligne des deux repos (À faire)
 
-### 2.1 Créer et pousser le repo central `sdlc-blueprint`
+Ordre important : le repo central d'abord, car le pipeline de l'application l'appelle.
 
-### 2.2 Créer et pousser le repo de démonstration `sdlc-sample-app`
+### 2.1 Pousser le repo central `sdlc-blueprint`
 
-### 2.3 Vérifier la première exécution du pipeline commun
+```bash
+cd ~/Documents/workspace/sdlc-blueprint
+git remote add origin git@github.com:$ORG/sdlc-blueprint.git
+git push -u origin main
+```
+
+**Résultat attendu.** `git push` affiche `main -> main` ; le code est visible sur GitHub.
+
+### 2.2 Mettre en pause la collecte planifiée
+
+La collecte planifiée (`sdlc-collector.yml`) tournerait chaque jour ouvré et échouerait faute de jeton (phase 6). La désactiver jusque-là :
+
+```bash
+gh workflow disable "SDLC collector" --repo $ORG/sdlc-blueprint
+gh workflow list --repo $ORG/sdlc-blueprint --all     # SDLC collector : disabled_manually
+```
+
+### 2.3 Pousser le repo de démonstration `sdlc-sample-app`
+
+```bash
+cd ~/Documents/workspace/sdlc-sample-app
+git remote add origin git@github.com:$ORG/sdlc-sample-app.git
+git push -u origin main
+```
+
+**Résultat attendu.** Le push sur `main` déclenche le workflow `SDLC`.
+
+### 2.4 Vérifier la première exécution du pipeline commun
+
+```bash
+gh run list --repo $ORG/sdlc-sample-app --limit 1              # statut de l'exécution
+gh run watch --repo $ORG/sdlc-sample-app                       # suivre en direct (choisir l'exécution)
+gh run view --repo $ORG/sdlc-sample-app --json jobs --jq '.jobs[] | {name, conclusion}'
+```
+
+**Résultat attendu.**
+- Deux jobs au vert : `sdlc / detect` et `sdlc / build-test`. **Le nom `sdlc / build-test` est celui que le ruleset exigera** (phase 3) : le noter s'il diffère.
+- Dans le résumé de l'exécution (onglet *Summary* sur GitHub) : stack `java-maven` détectée, commande `./mvnw -B -ntp verify`, et 3 tests passés (2 dans `HelloControllerTests`, 1 dans `SdlcSampleAppApplicationTests`).
+
+**En cas d'échec.** `gh run view --repo $ORG/sdlc-sample-app --log-failed` affiche les lignes en erreur.
+
+**Chez le client.** Si le repo central est privé ou interne, autoriser son pipeline pour les autres repos : *Settings > Actions > General > Access > Accessible from repositories in the organization*.
 
 ---
 
