@@ -62,7 +62,7 @@ jobs:
 | L2 | Niveau 2 | À venir |
 | IA | SDLC assisté par l'IA | À venir |
 
-Référence de configuration : [docs/configuration.md](docs/configuration.md).
+Référence de configuration : [docs/configuration.md](docs/configuration.md). Procédure de mise en place pas à pas : [docs/procedure.md](docs/procedure.md).
 
 ---
 
