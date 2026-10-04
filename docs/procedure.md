@@ -148,7 +148,7 @@ gh run view --repo $ORG/sdlc-sample-app --json jobs --jq '.jobs[] | {name, concl
 
 **En cas d'échec.** `gh run view --repo $ORG/sdlc-sample-app --log-failed` affiche les lignes en erreur.
 
-### 2.5 Mettre à jour les actions du pipeline commun (À faire)
+### 2.5 Mettre à jour les actions du pipeline commun (Fait)
 
 Suite à l'annotation de l'étape 2.4, toutes les actions passent à leur dernière version majeure (Node.js 24) : `checkout@v7`, `setup-java@v6`, `setup-node@v7`, `setup-python@v7`, `setup-dotnet@v6`, `upload-artifact@v7`. Le commit est prêt en local.
 
@@ -158,6 +158,8 @@ git push
 ```
 
 **Validation.** Elle se fait au prochain push sur l'application, à l'étape 3.1 : le pipeline doit rester au vert, sans l'avertissement Node.js 20.
+
+**Résultat obtenu.** Pipeline au vert après le push de l'étape 3.1 ; l'avertissement Node.js 20 a disparu. Seule reste l'information sur la migration d'`ubuntu-latest` vers Ubuntu 26.
 
 ```bash
 gh run list --repo $ORG/sdlc-sample-app --limit 1
@@ -169,9 +171,9 @@ gh run list --repo $ORG/sdlc-sample-app --limit 1
 
 ---
 
-## Phase 3. Application du socle (mode repo par repo) (À faire)
+## Phase 3. Application du socle (mode repo par repo) (En cours)
 
-### 3.1 Préparer la relecture (avant d'activer les règles)
+### 3.1 Préparer la relecture (avant d'activer les règles) (Fait)
 
 Le ruleset exigera l'approbation d'un **propriétaire de code autre que l'auteur**. Si CODEOWNERS ne liste que soi-même, aucune de ses PR ne pourra être fusionnée. Ajouter au moins un relecteur, ayant l'accès en écriture au repo (ici Sami, `shenchiri-palo`, déjà admin du repo).
 
@@ -180,7 +182,7 @@ Cette modification se fait **avant** d'appliquer le ruleset : après, elle devra
 ```bash
 cd ~/Documents/workspace/sdlc-sample-app
 # Remplacer la ligne "*    @mdabo-palo-it" par :
-#   *    @mdabo-palo-it @shenchiri-palo
+#   *    @mdabo-palo-it `@<quelqu'un d'autre>`
 git add .github/CODEOWNERS
 git commit -m "chore: second relecteur dans CODEOWNERS"
 git push
@@ -189,7 +191,7 @@ gh run list --repo $ORG/sdlc-sample-app --limit 1    # valide aussi l'étape 2.5
 
 **Chez le client.** Désigner de préférence une **équipe GitHub** (`@org/equipe`) d'au moins deux personnes plutôt que des comptes individuels. Pour une équipe d'un seul développeur, ajouter un relecteur d'une autre équipe ou le tech lead (voir fiche 03).
 
-### 3.2 Appliquer les règles : `apply-socle.sh`
+### 3.2 Appliquer les règles : `apply-socle.sh` (Fait)
 
 D'abord à blanc, pour voir ce qui sera fait :
 
@@ -219,7 +221,13 @@ Puis pour de bon :
 
 Vérification dans l'interface : *Settings > Rules > Rulesets > socle-main*, et *Settings > Advanced Security*.
 
-### 3.3 Contrôler : `check.sh`
+**Résultat obtenu.** Ruleset `socle-main` actif (`enforcement: active`, défini au niveau du repo) :
+
+```bash
+gh api repos/$ORG/sdlc-sample-app/rulesets --jq '.[] | {name, enforcement, source_type}'
+```
+
+### 3.3 Contrôler : `check.sh` (Fait)
 
 ```bash
 ./scripts/check.sh $ORG/sdlc-sample-app
@@ -230,6 +238,13 @@ Vérification dans l'interface : *Settings > Rules > Rulesets > socle-main*, et 
 - **KO attendus à ce stade** : `SEC-4` (Dependabot) et `SEC-6` (analyse de code), qui relèvent des fiches 06 et 07, pas encore appliquées.
 - **INFO** : `OPS-2` (runbook non déclaré, point L2).
 - `SEC-5` peut apparaître en `?` tant que Dependabot n'est pas activé.
+
+**Résultat obtenu (4 octobre 2026).** **L1 : 20/21 conformes**, 1 KO, 0 non lisible ; L2 restant : 1.
+- Seul KO : `SEC-6` (aucune analyse de code), attendu, relève de la fiche 07.
+- `OPS-2` en INFO (runbook non déclaré), attendu.
+- **Écart avec la prévision :** `SEC-4` (Dependabot) et `SEC-5` sont OK. Les alertes Dependabot étaient déjà activées sans action du script (réglage par défaut de l'organisation ou comportement de GitHub pour un repo public ; l'origine n'est pas visible avec le rôle Member). Les mises à jour de sécurité automatiques, elles, sont désactivées.
+
+**Leçon.** Ne pas compter sur un réglage par défaut : la fiche 06 activera explicitement les alertes et les mises à jour de sécurité Dependabot.
 
 ### 3.4 Dérouler les scénarios de test
 
