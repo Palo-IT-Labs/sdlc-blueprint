@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Récupération du code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Collecte de la conformité
         env:
@@ -41,7 +41,7 @@ jobs:
           cat reports/report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publication du rapport
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sdlc-report
           path: reports/
