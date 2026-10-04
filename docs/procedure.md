@@ -155,12 +155,13 @@ Suite à l'annotation de l'étape 2.4, toutes les actions passent à leur derni�
 ```bash
 cd ~/Documents/workspace/sdlc-blueprint
 git push
-# Relancer le pipeline de l'application pour valider les nouvelles versions :
-gh workflow run SDLC --repo $ORG/sdlc-sample-app --ref main
-gh run list --repo $ORG/sdlc-sample-app --limit 1
 ```
 
-**Résultat attendu.** Pipeline au vert, sans l'avertissement Node.js 20.
+**Validation.** Elle se fait au prochain push sur l'application, à l'étape 3.1 : le pipeline doit rester au vert, sans l'avertissement Node.js 20.
+
+```bash
+gh run list --repo $ORG/sdlc-sample-app --limit 1
+```
 
 **Bonne pratique à retenir.** Vérifier régulièrement les versions des actions : `gh api repos/actions/<action>/releases/latest --jq .tag_name`. Au niveau L2, épingler les actions par empreinte (SHA) plutôt que par version.
 
@@ -183,6 +184,7 @@ cd ~/Documents/workspace/sdlc-sample-app
 git add .github/CODEOWNERS
 git commit -m "chore: second relecteur dans CODEOWNERS"
 git push
+gh run list --repo $ORG/sdlc-sample-app --limit 1    # valide aussi l'étape 2.5 : pipeline au vert
 ```
 
 **Chez le client.** Désigner de préférence une **équipe GitHub** (`@org/equipe`) d'au moins deux personnes plutôt que des comptes individuels. Pour une équipe d'un seul développeur, ajouter un relecteur d'une autre équipe ou le tech lead (voir fiche 03).
