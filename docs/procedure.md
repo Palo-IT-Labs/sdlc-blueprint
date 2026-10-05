@@ -330,7 +330,7 @@ cd ~/Documents/workspace/sdlc-blueprint && ./scripts/check.sh $ORG/sdlc-sample-a
 
 Résultat attendu : celui de l'étape 3.3.
 
-**Résultats obtenus (4 octobre 2026).**
+**Résultats obtenus .**
 
 | Scénario | Résultat |
 |---|---|
@@ -346,9 +346,9 @@ Résultat attendu : celui de l'étape 3.3.
 
 ---
 
-## Phase 4. Raccordement d'un repo par PR d'amorçage (À faire)
+## Phase 4. Raccordement d'un repo par PR d'amorçage (En cours)
 
-Objectif double : éprouver la **PR d'amorçage** sur un repo qui n'a aucun fichier SDLC, et vérifier que le pipeline commun est **générique** avec une seconde stack (Node.js). L'application `sdlc-sample-node` (sans dépendance, 2 tests) est prête en local dans `~/Documents/workspace/sdlc-sample-node`.
+Objectif double : éprouver la **PR d'amorçage** sur un repo qui n'a aucun fichier SDLC, et vérifier que le pipeline commun est **générique** avec une seconde stack (Node.js). L'application `sdlc-sample-node` (sans dépendance, 2 tests) est prête en local.
 
 ### 4.0 Pousser les derniers changements du blueprint
 
@@ -434,6 +434,30 @@ gh pr merge <numero> --repo $ORG/sdlc-sample-node --squash --delete-branch
 ```
 
 **Résultat attendu.** Même profil que `sdlc-sample-app` : seul `SEC-6` (analyse de code) en KO, plus les déclarations de `.sdlc.yml` restées vides, le cas échéant.
+
+**Résultat obtenu (5 octobre 2026).** **L1 : 16/21 conformes**, 5 KO.
+- Socle entièrement conforme sur la seconde stack : protection, relecture, contrôle requis, secrets, Dependabot.
+- `SEC-6` : attendu (fiche 07).
+- `DOC-2`, `DOC-3`, `OPS-1`, `TRA-1` : la PR d'amorçage a été fusionnée **sans compléter `.sdlc.yml`**. Le contrôle signale précisément les déclarations manquantes.
+
+**Leçon.** Les déclarations se complètent dans la PR d'amorçage, avant la fusion. Après activation des règles, toute correction passe par une nouvelle PR relue : c'est le fonctionnement normal d'une équipe.
+
+### 4.6 Compléter les déclarations par une PR (À faire)
+
+```bash
+cd ~/Documents/workspace/sdlc-sample-node
+git checkout main && git pull
+git checkout -b chore/sdlc-declarations
+# .sdlc.yml : servicenow-app, declarations.deployment-doc, architecture, on-call
+git commit -am "chore(sdlc): déclarations du repo"
+git push -u origin chore/sdlc-declarations
+gh pr create --fill --base main
+# après approbation du relecteur et pipeline au vert :
+gh pr merge --squash --delete-branch
+cd ~/Documents/workspace/sdlc-blueprint && ./scripts/check.sh $ORG/sdlc-sample-node
+```
+
+**Résultat attendu.** L1 : 20/21, seul `SEC-6` en KO.
 
 **Chez le client.** La PR d'amorçage demande le droit d'écriture sur le repo. Elle ne modifie jamais un fichier existant : si l'équipe a déjà un CODEOWNERS ou un modèle de PR, ils sont conservés et le contrôle dira s'ils suffisent. C'est l'équipe qui relit et fusionne.
 
