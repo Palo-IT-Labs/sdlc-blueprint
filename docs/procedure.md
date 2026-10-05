@@ -390,15 +390,33 @@ gh repo edit $ORG/sdlc-sample-app --add-topic sdlc
 ### 4.3 Relire la PR et vérifier le pipeline
 
 ```bash
-gh pr view --repo $ORG/sdlc-sample-node --web     # relire les fichiers proposés
-gh pr checks --repo $ORG/sdlc-sample-node <numero> --watch
+gh pr list --repo $ORG/sdlc-sample-node                    # numéro de la PR
+gh pr view <numero> --repo $ORG/sdlc-sample-node --web     # relire les fichiers proposés
+gh pr checks <numero> --repo $ORG/sdlc-sample-node --watch
 ```
+
+Avec `--repo`, les commandes `gh pr` exigent toujours le numéro de la PR (ou sa branche).
 
 **Résultat attendu.**
 - `sdlc / detect` et `sdlc / build-test` au vert, **sans aucune configuration** : stack `node` détectée, installation `npm ci` (fichier de verrou présent), tests `npm test`.
 - Dans le résumé de l'exécution : **2 tests**, 0 échec.
 
-**Exercice de relecture.** Compléter `.sdlc.yml` dans la branche de la PR, comme le ferait l'équipe : `servicenow-app`, `declarations.deployment-doc` (par exemple `README.md#lancer-en-local`), `declarations.architecture`, `declarations.on-call`.
+**Résultat obtenu.** PR #1 ouverte ; `sdlc / detect` (8 s) et `sdlc / build-test` (12 s) au vert ; stack Node.js détectée sans configuration ; topic `sdlc` ajouté.
+
+**Exercice de relecture : compléter `.sdlc.yml` dans la branche de la PR.** La PR propose les changements de la branche `sdlc/bootstrap` vers `main`. Compléter un fichier « dans la PR », c'est ajouter un commit sur cette branche : la PR et le pipeline se mettent à jour automatiquement.
+
+*Dans le navigateur :* onglet **Files changed** de la PR, menu **⋯** du fichier `.sdlc.yml`, **Edit file**, puis **Commit changes** en laissant l'option « commit directly to the `sdlc/bootstrap` branch ».
+
+*En ligne de commande :*
+
+```bash
+cd ~/Documents/workspace/sdlc-sample-node
+gh pr checkout <numero>      # bascule la copie locale sur la branche de la PR
+# éditer .sdlc.yml : servicenow-app, declarations.deployment-doc, architecture, on-call
+git commit -am "chore(sdlc): configuration du repo"
+git push
+git checkout main            # revenir sur main
+```
 
 ### 4.4 Fusionner la PR
 
@@ -418,6 +436,89 @@ gh pr merge <numero> --repo $ORG/sdlc-sample-node --squash --delete-branch
 **Résultat attendu.** Même profil que `sdlc-sample-app` : seul `SEC-6` (analyse de code) en KO, plus les déclarations de `.sdlc.yml` restées vides, le cas échéant.
 
 **Chez le client.** La PR d'amorçage demande le droit d'écriture sur le repo. Elle ne modifie jamais un fichier existant : si l'équipe a déjà un CODEOWNERS ou un modèle de PR, ils sont conservés et le contrôle dira s'ils suffisent. C'est l'équipe qui relit et fusionne.
+
+---
+
+## Parcours type chez le client
+
+La phase 4 éprouve la mécanique sur un repo neuf. Sur un repo existant, elle n'est ni la première étape ni suffisante : un vrai repo a un historique, des habitudes et parfois une CI.
+
+### Repo existant : les 5 étapes
+
+| # | Étape | Comment | Sortie attendue |
+|---|---|---|---|
+| 1 | **État des lieux** (lecture seule) | `./scripts/check.sh <org>/<repo> --out etat-initial` | Rapport « avant », partagé avec l'équipe |
+| 2 | **Découverte avec l'équipe** | Check-list ci-dessous, en 30 à 45 minutes | Décisions notées : branches, CI, relecteurs, exceptions |
+| 3 | **PR d'amorçage, relue avec l'équipe** | `./scripts/bootstrap-repo.sh <org>/<repo>`, puis compléter `.sdlc.yml` dans la PR | Pipeline commun **au vert** sur la PR, puis fusion |
+| 4 | **Activation des règles** | Couche organisation (propriété `sdlc-profile`, avec les administrateurs) ou, à défaut, `./scripts/apply-socle.sh` | Ruleset actif ; équipe prévenue la veille |
+| 5 | **Contrôle « après »** | `./scripts/check.sh <org>/<repo> --out etat-final`, comparé à l'étape 1 | Progrès mesuré, points restants planifiés |
+
+**Conditions pour passer à l'étape 4.** Pipeline au vert sur `main` ; au moins deux relecteurs dans CODEOWNERS (ou une exception validée) ; comptes de service et pipelines qui poussent sur `main` recensés et autorisés explicitement ; équipe prévenue.
+
+### Check-list de découverte (étape 2)
+
+| Sujet | Question | Ce que ça change |
+|---|---|---|
+| Branches | Quelle est la branche par défaut ? Utilisez-vous `develop` ? | Si oui, protéger aussi `develop` (fiche 01) |
+| Production | Depuis quelle branche part la prod ? Comment ? | Les contrôles doivent couvrir la branche réellement déployée |
+| CI existante | Avez-vous déjà des workflows ou des pipelines ? Que font-ils ? | Garder, remplacer, ou faire cohabiter avec le pipeline commun ; éviter les builds en double |
+| Tests | Y a-t-il des tests ? Combien de temps prennent-ils ? Sont-ils stables ? | Commandes de `.sdlc.yml` ; un test instable doit être traité avant d'être requis |
+| Stack | Langage, outil de build, dossier du projet, plusieurs composants ? | `stack`, `working-directory`, ou stack `custom` |
+| Relecture | Combien de développeurs ? Qui peut relire ? | CODEOWNERS ; exception si un seul développeur (fiche 03) |
+| Automatismes | Des comptes de service, bots ou pipelines poussent-ils sur `main` ? | À autoriser explicitement avant d'activer les règles |
+| Secrets | Où sont les secrets aujourd'hui ? Des alertes déjà ouvertes ? | Plan de traitement des alertes existantes |
+| Traçabilité | Identifiant de l'application dans ServiceNow ? | `servicenow-app` dans `.sdlc.yml` |
+| Exploitation | Procédure de déploiement, contact d'astreinte, runbook ? | `declarations` dans `.sdlc.yml` |
+
+### Variante : repo neuf (exemple : projet développé par un intégrateur)
+
+Pour un repo encore vide, comme ceux d'un projet qui démarre :
+1. Pas d'état des lieux : tout est à poser.
+2. PR d'amorçage dès la création du repo, **avant** le premier commit de l'intégrateur.
+3. Règles activées immédiatement : il n'y a pas d'habitude à changer.
+4. En plus :
+   - **droits de l'intégrateur** : contributeur (écriture), jamais administrateur ; la gouvernance reste au client ;
+   - **règles à imposer à l'intégrateur** formalisées dans un document court (stratégie de branches, relecture, tests, secrets), et vérifiées automatiquement par les rulesets et le pipeline plutôt que par des revues manuelles ;
+   - au moins un **relecteur côté client** dans CODEOWNERS, pour que le code fourni soit relu par quelqu'un qui en répond.
+
+---
+
+## Rapatrier le blueprint chez le client
+
+Le blueprint doit vivre **dans l'organisation GitHub du client**, pour que ses équipes l'appellent et que le client le maintienne après la mission.
+
+### La manière la plus efficace : une copie interne, versionnée
+
+1. **Créer le repo chez le client**, avec la visibilité **interne** (visible de toute l'entreprise, pas d'Internet), dans l'organisation de l'équipe qui en sera propriétaire (par exemple l'équipe qui administre la plateforme, ou celle de l'entité accompagnée).
+2. **Pousser le contenu depuis le poste**, avec le compte du client :
+   ```bash
+   cd ~/Documents/workspace/sdlc-blueprint
+   git remote add client git@github.com:<org-client>/sdlc-blueprint.git
+   git push client main
+   ```
+3. **Autoriser l'appel du pipeline** par les autres repos : dans le repo central, *Settings > Actions > General > Access > Accessible from repositories in the organization* (ou *in the enterprise*).
+4. **Publier une version** : les équipes référencent `@v1`, pas `@main`.
+   ```bash
+   git tag v1.0.0 && git push client v1.0.0
+   git tag -f v1 && git push -f client v1     # étiquette « v1 » qui suit les correctifs de la v1
+   ```
+5. **Désigner un propriétaire côté client** : CODEOWNERS du blueprint lui-même, et ruleset sur son `main`.
+
+### Pourquoi pas les autres options
+
+| Option | Limite |
+|---|---|
+| Fork du repo Palo IT | Un fork reste lié à l'original et hérite de sa visibilité ; les entreprises restreignent souvent les forks depuis l'extérieur |
+| Import par URL (*Import repository*) | Nécessite que la source soit accessible depuis le client ; souvent bloqué par les politiques de sécurité |
+| Appeler directement le repo Palo IT | Dépendance externe du client envers un repo qu'il ne contrôle pas : à proscrire |
+
+### Points de vigilance
+
+- **Compte utilisé** : avec des comptes gérés par l'entreprise ou le SSO, pousser avec le compte du client, après autorisation SSO de la clé SSH ou du jeton.
+- **Contenu** : vérifier qu'aucune référence à l'organisation de test ne subsiste (`grep -rn "Palo-IT-Labs" .`). Les modèles utilisent `__ORG__`, remplacé à l'amorçage.
+- **Propriété intellectuelle** : le blueprint est un actif Palo IT ; son transfert et ses conditions d'usage relèvent du contrat de la mission.
+- **Évolutions** : après le transfert, le repo du client fait foi. Les améliorations génériques peuvent être reversées dans la version Palo IT, et inversement, par PR.
+- **Articulation avec l'existant** : si l'équipe plateforme du client maintient déjà des modèles ou un catalogue, y intégrer le blueprint plutôt que de créer un circuit parallèle.
 
 ---
 
